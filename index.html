@@ -24,13 +24,9 @@
         }
 
         body {
-            background-image: url('image/IMG-20260615-WA0000.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background-color: var(--bg-color);
             color: var(--text-color);
             padding: 20px;
-            background-color: var(--bg-color);
         }
 
         .container {
@@ -201,6 +197,40 @@
             border-radius: 4px; 
             font-size: 0.85rem;
         }
+        .status-label {
+            color: #6b7280;
+            cursor: pointer;
+            text-decoration: underline dotted;
+            font-weight: 600;
+        }
+        .status-input {
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            width: 140px;
+        }
+        .low-stock-badge {
+            background: #fff7ed;
+            color: var(--warning);
+            border: 1px solid #fbbf24;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+            font-weight: 700;
+        }
+        .small-btn {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            background: #eef2ff;
+            color: #3730a3;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -238,10 +268,7 @@
                             <option value="expense">free gift</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <input type="text" id="description" placeholder="e.g., Salary, Office Tools" required>
-                    </div>
+                    <!-- Description removed per request -->
                     <div class="form-group">
                         <label>Category</label>
                         <select id="category">
@@ -249,6 +276,34 @@
                             <option value="Food">Food</option>
                             <option value="Drinks">Drinks</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date Granularity</label>
+                        <select id="dateGranularity">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Choose Exact Date & Time</label>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="range" id="dateSlider" style="flex:1;" />
+                            <div style="min-width:200px;">
+                                <input type="datetime-local" id="dateTimeInput" style="width:100%;" />
+                                <div id="dateDisplay" style="font-size:0.85rem; color:#6b7280; margin-top:4px;">Selected: —</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Product (optional)</label>
+                        <select id="orderProduct">
+                            <option value="">-- Select product --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Order Quantity</label>
+                        <input type="number" id="orderQty" min="1" value="1" placeholder="Quantity">
                     </div>
                     <div class="form-group">
                         <label>Status</label>
@@ -263,6 +318,44 @@
                     </div>
                     <button type="submit" class="btn-submit">Record Transaction</button>
                 </form>
+
+                <div style="margin-top:10px;">
+                    <button id="exportInventoryBtn" class="small-btn">Save Inventory CSV to localStorage</button>
+                    <button id="downloadStoredCsvBtn" class="small-btn">Download Stored CSV</button>
+                    <label style="margin-left:10px; font-size:0.9rem; color:#374151; display:inline-flex; align-items:center;">
+                        <input type="checkbox" id="autoDownloadChk" style="margin-right:8px;"> Auto-download on save
+                    </label>
+                    <div style="margin-top:8px; font-size:0.85rem; color:#6b7280;">
+                        Last saved: <span id="lastSavedSpan">—</span>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Inventory</h2>
+                <form id="inventoryForm">
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="productName" placeholder="e.g., Pens" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="productQty" min="1" value="1" required>
+                    </div>
+                    <button type="submit" class="btn-submit">Add / Update Product</button>
+                </form>
+
+                <div class="table-container" style="margin-top:15px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryList"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -274,8 +367,9 @@
                         <thead>
                             <tr>
                                 <th>Date & Time</th>
-                                <th>Description</th>
+                                <th>Product</th>
                                 <th>Category</th>
+                                <th>Status</th>
                                 <th>Amount</th>
                                 <th>Action</th>
                             </tr>
@@ -292,8 +386,9 @@
                         <thead>
                             <tr>
                                 <th>Date & Time</th>
-                                <th>Description</th>
+                                <th>Product</th>
                                 <th>Category</th>
+                                <th>Status</th>
                                 <th>Amount</th>
                                 <th>Action</th>
                             </tr>
@@ -310,7 +405,7 @@
                         <thead>
                             <tr>
                                 <th>Deletion Date</th>
-                                <th>Description</th>
+                                <th>Product</th>
                                 <th>Original Amount</th>
                                 <th>Actions</th>
                             </tr>
@@ -333,10 +428,23 @@
     const netBalanceEl = document.getElementById('netBalance');
     const totalIncomeEl = document.getElementById('totalIncome');
     const totalExpensesEl = document.getElementById('totalExpenses');
+    const orderProductEl = document.getElementById('orderProduct');
+    const orderQtyEl = document.getElementById('orderQty');
+    const dateGranularityEl = document.getElementById('dateGranularity');
+    const dateSlider = document.getElementById('dateSlider');
+    const dateTimeInput = document.getElementById('dateTimeInput');
+    const dateDisplay = document.getElementById('dateDisplay');
+    const inventoryListEl = document.getElementById('inventoryList');
+    const inventoryForm = document.getElementById('inventoryForm');
+    const productNameEl = document.getElementById('productName');
+    const productQtyEl = document.getElementById('productQty');
+    const autoDownloadChk = document.getElementById('autoDownloadChk');
+    const lastSavedSpan = document.getElementById('lastSavedSpan');
 
     // Load active transactions and trash from Local Storage
     let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
     let trashBin = JSON.parse(localStorage.getItem('trashBin')) || [];
+    let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
 
     // Main Function to update UI and calculations
     function updateUI() {
@@ -357,8 +465,9 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${transaction.timestamp}</td>
-                    <td>${transaction.description}</td>
+                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + transaction.orderQty + '</div>') : '-'}</td>
                     <td><span class="category-badge">${transaction.category}</span></td>
+                    <td><span class="status-label" data-id="${transaction.id}">${transaction.orderPlacedBy ? transaction.orderPlacedBy : 'pending'}</span></td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}">
                         ${isIncome ? '+' : '-'}${transaction.amount.toFixed(2)} EGP
                     </td>
@@ -375,8 +484,9 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${transaction.timestamp}</td>
-                    <td>${transaction.description}</td>
+                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + transaction.orderQty + '</div>') : '-'}</td>
                     <td><span class="category-badge">${transaction.category}</span></td>
+                    <td>${transaction.orderPlacedBy ? transaction.orderPlacedBy : transaction.status}</td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}">
                         ${isIncome ? '+' : '-'}${transaction.amount.toFixed(2)} EGP
                     </td>
@@ -403,7 +513,7 @@
                 const isIncome = item.type === 'income';
                 row.innerHTML = `
                     <td style="color: #6b7280; font-size: 0.85rem;">${item.deletedAt}</td>
-                    <td>${item.description}</td>
+                    <td>${item.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + item.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + item.orderQty + '</div>') : '-'}</td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}" style="opacity: 0.7;">
                         ${isIncome ? '+' : '-'}${item.amount.toFixed(2)} EGP
                     </td>
@@ -419,23 +529,67 @@
         // Save Updates to LocalStorage
         localStorage.setItem('transactions', JSON.stringify(transactions));
         localStorage.setItem('trashBin', JSON.stringify(trashBin));
+            localStorage.setItem('inventory', JSON.stringify(inventory));
     }
+
+    // Initialize date slider and datetime input
+    (function initDateControls(){
+        if (!dateSlider || !dateTimeInput || !dateDisplay) return;
+        const minDate = new Date(2000,0,1,0,0).getTime();
+        const maxDate = new Date(2030,11,31,23,59).getTime();
+        dateSlider.min = minDate;
+        dateSlider.max = maxDate;
+        dateSlider.step = 60000; // one minute steps
+        const now = Date.now();
+        const init = Math.max(minDate, Math.min(maxDate, now));
+        dateSlider.value = init;
+        // set datetime input
+        function msToDatetimeLocal(ms){
+            const d = new Date(Number(ms));
+            // format to yyyy-MM-ddTHH:mm
+            const iso = d.toISOString();
+            return iso.slice(0,16);
+        }
+        dateTimeInput.value = msToDatetimeLocal(init);
+        dateDisplay.innerText = new Date(Number(init)).toLocaleString();
+
+        dateSlider.addEventListener('input', function(){
+            const ms = Number(this.value);
+            dateTimeInput.value = msToDatetimeLocal(ms);
+            dateDisplay.innerText = new Date(ms).toLocaleString();
+        });
+
+        dateTimeInput.addEventListener('change', function(){
+            const v = this.value;
+            const ms = new Date(v).getTime();
+            if (!isNaN(ms)){
+                dateSlider.value = ms;
+                dateDisplay.innerText = new Date(ms).toLocaleString();
+            }
+        });
+    })();
 
     // Add New Transaction
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-
         const type = document.getElementById('type').value;
-        const description = document.getElementById('description').value;
         const category = document.getElementById('category').value;
+        const product = orderProductEl ? orderProductEl.value : '';
+        const orderQty = orderQtyEl ? parseInt(orderQtyEl.value, 10) || 0 : 0;
         const amount = parseFloat(document.getElementById('amount').value);
         
-        const now = new Date();
-        const timestamp = now.toLocaleDateString('en-US') + ' | ' + now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
+        // Build timestamp from selected date controls (slider/datetime). Fallback to now.
+        let selectedMs = Date.now();
+        if (dateSlider && dateSlider.value) selectedMs = Number(dateSlider.value);
+        const selectedDate = new Date(selectedMs);
+        const timestamp = selectedDate.toLocaleDateString('en-US') + ' | ' + selectedDate.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
 
         const status = document.getElementById('status') ? document.getElementById('status').value : 'pending';
         const id = Date.now();
-        const transaction = { id, type, description, category, amount, timestamp, status };
+        // NOTE: inventory deduction is deferred until order is marked Completed.
+        // Orders can be placed even if product is not currently in inventory.
+
+        const transaction = { id, type, product: product || undefined, orderQty: product ? orderQty : undefined, category, amount, timestamp, status };
 
         transactions.unshift(transaction);
         updateUI();
@@ -457,6 +611,20 @@
     window.markComplete = function(id) {
         const t = transactions.find(t => t.id === id);
         if (!t) return;
+        // If this transaction includes a product, validate and deduct from inventory now
+        if (t.product && t.orderQty) {
+            const invIndex = inventory.findIndex(i => i.name.toLowerCase() === t.product.toLowerCase());
+            const available = invIndex === -1 ? 0 : inventory[invIndex].qty;
+            if (available < t.orderQty) {
+                alert('Cannot complete order — insufficient stock for ' + t.product + '. Available: ' + available);
+                return;
+            }
+            // deduct
+            inventory[invIndex].qty = available - t.orderQty;
+            if (inventory[invIndex].qty <= 0) inventory.splice(invIndex, 1);
+            saveInventory();
+            renderInventory();
+        }
         t.status = 'completed';
         updateUI();
     };
@@ -473,6 +641,34 @@
         updateUI();
     };
 
+    // Click-to-edit for pending status label
+    pendingList.addEventListener('click', function(e) {
+        const el = e.target;
+        if (!el.classList.contains('status-label')) return;
+        const id = parseInt(el.dataset.id, 10);
+        const current = (el.innerText === 'pending') ? '' : el.innerText;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = current;
+        input.className = 'status-input';
+        input.placeholder = 'Enter name';
+        el.replaceWith(input);
+        input.focus();
+
+        function save() {
+            const val = input.value.trim();
+            const t = transactions.find(t => t.id === id);
+            if (t) {
+                t.orderPlacedBy = val || undefined;
+                // keep status as pending unless explicitly changed elsewhere
+                updateUI();
+            }
+        }
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') input.blur(); });
+    });
+
     // Restore Transaction from Trash Bin to Active List
     window.restoreTransaction = function(index) {
         let restoredItem = trashBin.splice(index, 1)[0];
@@ -486,6 +682,19 @@
     // Permanent Deletion from Local Memory
     window.permanentDelete = function(index) {
         if (confirm("Are you sure you want to permanently delete this transaction? This action cannot be undone.")) {
+            // before removing, if the trashed item had a product, return stock to inventory
+            const item = trashBin[index];
+            if (item && item.product) {
+                const returnQty = item.orderQty && Number.isFinite(item.orderQty) ? item.orderQty : 1;
+                const existing = inventory.find(i => i.name.toLowerCase() === item.product.toLowerCase());
+                if (existing) {
+                    existing.qty = (existing.qty || 0) + returnQty;
+                } else {
+                    inventory.push({ name: item.product, qty: returnQty });
+                }
+                saveInventory();
+                renderInventory();
+            }
             trashBin.splice(index, 1);
             updateUI();
         }
@@ -493,6 +702,131 @@
 
     // Initial load call to render stored data
     updateUI();
+    // Inventory functions
+    function renderInventory() {
+        inventoryListEl.innerHTML = '';
+        if (inventory.length === 0) {
+            inventoryListEl.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9ca3af; font-size:0.9rem;">Inventory is empty</td></tr>`;
+            // reset order product select
+            if (orderProductEl) {
+                orderProductEl.innerHTML = '<option value="">-- Select product --</option>';
+            }
+            // attach export handler
+            const exportBtnEmpty = document.getElementById('exportInventoryBtn');
+            if (exportBtnEmpty) exportBtnEmpty.onclick = exportInventoryCSV;
+            return;
+        }
+
+        inventory.forEach((item, idx) => {
+            const row = document.createElement('tr');
+            const lowBadge = item.qty <= 5 ? '<span class="low-stock-badge">Low</span>' : '';
+            row.innerHTML = `
+                <td>${item.name} ${lowBadge}</td>
+                <td>${item.qty}</td>
+                <td>
+                    <button class="btn-restore" onclick="adjustQty(${idx}, 1)">+1</button>
+                    <button class="btn-delete" onclick="adjustQty(${idx}, -1)">-1</button>
+                    <button class="btn-delete" style="margin-left:8px;" onclick="removeProduct(${idx})">Remove</button>
+                </td>
+            `;
+            inventoryListEl.appendChild(row);
+        });
+
+        // populate order product select
+        if (orderProductEl) {
+            orderProductEl.innerHTML = '<option value="">-- Select product --</option>';
+            inventory.forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i.name;
+                opt.text = `${i.name} (${i.qty})`;
+                orderProductEl.appendChild(opt);
+            });
+        }
+
+        // attach export handler (ensure button exists)
+        const exportBtn = document.getElementById('exportInventoryBtn');
+        if (exportBtn) exportBtn.onclick = exportInventoryCSV;
+        const downloadBtn = document.getElementById('downloadStoredCsvBtn');
+        if (downloadBtn) downloadBtn.onclick = downloadStoredCSV;
+    }
+
+    function saveInventory() {
+        localStorage.setItem('inventory', JSON.stringify(inventory));
+        // Automatically export CSV whenever inventory changes
+        try { exportInventoryCSV(); } catch (e) { /* silent */ }
+    }
+
+    function exportInventoryCSV() {
+        if (!inventory) inventory = [];
+        const headers = ['Product','Quantity'];
+        let csv = headers.join(',') + '\n';
+        inventory.forEach(it => { csv += `"${(it.name+'').replace(/"/g,'""')}",${it.qty}\n`; });
+        // store CSV string and timestamp in localStorage for retrieval
+        try {
+            localStorage.setItem('inventory_csv', csv);
+            const now = new Date();
+            const iso = now.toISOString();
+            localStorage.setItem('inventory_csv_ts', iso);
+            if (lastSavedSpan) lastSavedSpan.innerText = new Date(iso).toLocaleString();
+            // auto-download if enabled
+            if (autoDownloadChk && autoDownloadChk.checked) {
+                const safeTs = iso.replace(/[:.]/g,'-');
+                const filename = `inventory-${safeTs}.csv`;
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            }
+        } catch (e) {
+            console.error('Failed to save inventory CSV to localStorage', e);
+        }
+    }
+
+    function downloadStoredCSV() {
+        const csv = localStorage.getItem('inventory_csv');
+        if (!csv) { alert('No inventory CSV stored in localStorage.'); return; }
+        const ts = localStorage.getItem('inventory_csv_ts') || new Date().toISOString();
+        const safeTs = ts.replace(/[:.]/g,'-');
+        const filename = `inventory-${safeTs}.csv`;
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    inventoryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = productNameEl.value.trim();
+        const qty = parseInt(productQtyEl.value, 10) || 0;
+        if (!name || qty <= 0) return;
+
+        const existing = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            existing.qty += qty;
+        } else {
+            inventory.push({ name, qty });
+        }
+        productNameEl.value = '';
+        productQtyEl.value = 1;
+        saveInventory();
+        renderInventory();
+    });
+
+    window.adjustQty = function(index, delta) {
+        if (!inventory[index]) return;
+        inventory[index].qty += delta;
+        if (inventory[index].qty <= 0) inventory.splice(index, 1);
+        saveInventory();
+        renderInventory();
+    };
+
+    window.removeProduct = function(index) {
+        if (!inventory[index]) return;
+        inventory.splice(index, 1);
+        saveInventory();
+        renderInventory();
+    };
+
+    // Render inventory on load
+    renderInventory();
     </script>
 </body>
 </html>
