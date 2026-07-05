@@ -268,7 +268,6 @@
                             <option value="expense">free gift</option>
                         </select>
                     </div>
-                    <!-- Description removed per request -->
                     <div class="form-group">
                         <label>Category</label>
                         <select id="category">
@@ -410,8 +409,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="trashList">
-                            </tbody>
+                        <tbody id="trashList"></tbody>
                     </table>
                 </div>
             </div>
@@ -465,7 +463,7 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${transaction.timestamp}</td>
-                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + transaction.orderQty + '</div>') : '-'}</td>
+                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Qty: ' + (transaction.orderQty || 1) + '</div>') : ''}</td>
                     <td><span class="category-badge">${transaction.category}</span></td>
                     <td><span class="status-label" data-id="${transaction.id}">${transaction.orderPlacedBy ? transaction.orderPlacedBy : 'pending'}</span></td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}">
@@ -484,7 +482,7 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${transaction.timestamp}</td>
-                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + transaction.orderQty + '</div>') : '-'}</td>
+                    <td>${transaction.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + transaction.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Qty: ' + (transaction.orderQty || 1) + '</div>') : ''}</td>
                     <td><span class="category-badge">${transaction.category}</span></td>
                     <td>${transaction.orderPlacedBy ? transaction.orderPlacedBy : transaction.status}</td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}">
@@ -513,7 +511,7 @@
                 const isIncome = item.type === 'income';
                 row.innerHTML = `
                     <td style="color: #6b7280; font-size: 0.85rem;">${item.deletedAt}</td>
-                    <td>${item.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + item.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Quantity: ' + item.orderQty + '</div>') : '-'}</td>
+                    <td>${item.product ? ('<div style="font-size:0.95rem; color:#111827; font-weight:600;">' + item.product + '</div><div style="font-size:0.9rem; color:#6b7280; margin-top:6px;">Qty: ' + (item.orderQty || 1) + '</div>') : ''}</td>
                     <td class="${isIncome ? 'text-income' : 'text-expense'}" style="opacity: 0.7;">
                         ${isIncome ? '+' : '-'}${item.amount.toFixed(2)} EGP
                     </td>
@@ -529,7 +527,7 @@
         // Save Updates to LocalStorage
         localStorage.setItem('transactions', JSON.stringify(transactions));
         localStorage.setItem('trashBin', JSON.stringify(trashBin));
-            localStorage.setItem('inventory', JSON.stringify(inventory));
+        localStorage.setItem('inventory', JSON.stringify(inventory));
     }
 
     // Initialize date slider and datetime input
@@ -539,14 +537,13 @@
         const maxDate = new Date(2030,11,31,23,59).getTime();
         dateSlider.min = minDate;
         dateSlider.max = maxDate;
-        dateSlider.step = 60000; // one minute steps
+        dateSlider.step = 60000;
         const now = Date.now();
         const init = Math.max(minDate, Math.min(maxDate, now));
         dateSlider.value = init;
-        // set datetime input
+        
         function msToDatetimeLocal(ms){
             const d = new Date(Number(ms));
-            // format to yyyy-MM-ddTHH:mm
             const iso = d.toISOString();
             return iso.slice(0,16);
         }
@@ -578,16 +575,35 @@
         const orderQty = orderQtyEl ? parseInt(orderQtyEl.value, 10) || 0 : 0;
         const amount = parseFloat(document.getElementById('amount').value);
         
-        // Build timestamp from selected date controls (slider/datetime). Fallback to now.
         let selectedMs = Date.now();
-        if (dateSlider && dateSlider.value) selectedMs = Number(dateSlider.value);
+        if (dateTimeInput && dateTimeInput.value) {
+            const msFromInput = new Date(dateTimeInput.value).getTime();
+            if (!isNaN(msFromInput)) selectedMs = msFromInput;
+        } else if (dateSlider && dateSlider.value) {
+            selectedMs = Number(dateSlider.value);
+        }
         const selectedDate = new Date(selectedMs);
         const timestamp = selectedDate.toLocaleDateString('en-US') + ' | ' + selectedDate.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
 
         const status = document.getElementById('status') ? document.getElementById('status').value : 'pending';
         const id = Date.now();
-        // NOTE: inventory deduction is deferred until order is marked Completed.
-        // Orders can be placed even if product is not currently in inventory.
+
+        if (product) {
+            const invIndex = inventory.findIndex(i => i.name.toLowerCase() === product.toLowerCase());
+            const available = invIndex === -1 ? 0 : inventory[invIndex].qty;
+            if (orderQty <= 0) {
+                alert('Please enter a valid order quantity.');
+                return;
+            }
+            if (available < orderQty) {
+                alert('Cannot record transaction — insufficient stock for ' + product + '. Available: ' + available);
+                return;
+            }
+            inventory[invIndex].qty = available - orderQty;
+            if (inventory[invIndex].qty <= 0) inventory.splice(invIndex, 1);
+            saveInventory();
+            renderInventory();
+        }
 
         const transaction = { id, type, product: product || undefined, orderQty: product ? orderQty : undefined, category, amount, timestamp, status };
 
@@ -595,7 +611,7 @@
         updateUI();
         form.reset(); 
     });
-    // Move Active Transaction to Trash Bin (by id)
+
     window.moveToTrashById = function(id) {
         const now = new Date();
         const deletedAt = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
@@ -607,11 +623,9 @@
         updateUI();
     };
 
-    // Mark a pending transaction as complete
     window.markComplete = function(id) {
         const t = transactions.find(t => t.id === id);
         if (!t) return;
-        // If this transaction includes a product, validate and deduct from inventory now
         if (t.product && t.orderQty) {
             const invIndex = inventory.findIndex(i => i.name.toLowerCase() === t.product.toLowerCase());
             const available = invIndex === -1 ? 0 : inventory[invIndex].qty;
@@ -619,7 +633,6 @@
                 alert('Cannot complete order — insufficient stock for ' + t.product + '. Available: ' + available);
                 return;
             }
-            // deduct
             inventory[invIndex].qty = available - t.orderQty;
             if (inventory[invIndex].qty <= 0) inventory.splice(invIndex, 1);
             saveInventory();
@@ -629,7 +642,6 @@
         updateUI();
     };
 
-    // Delete a pending transaction (move to trash)
     window.deletePending = function(id) {
         const now = new Date();
         const deletedAt = now.toLocaleDateString('en-US') + ' ' + now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
@@ -641,7 +653,6 @@
         updateUI();
     };
 
-    // Click-to-edit for pending status label
     pendingList.addEventListener('click', function(e) {
         const el = e.target;
         if (!el.classList.contains('status-label')) return;
@@ -660,7 +671,6 @@
             const t = transactions.find(t => t.id === id);
             if (t) {
                 t.orderPlacedBy = val || undefined;
-                // keep status as pending unless explicitly changed elsewhere
                 updateUI();
             }
         }
@@ -669,20 +679,15 @@
         input.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') input.blur(); });
     });
 
-    // Restore Transaction from Trash Bin to Active List
     window.restoreTransaction = function(index) {
         let restoredItem = trashBin.splice(index, 1)[0];
-        
         delete restoredItem.deletedAt;
-
         transactions.unshift(restoredItem);
         updateUI();
     };
 
-    // Permanent Deletion from Local Memory
     window.permanentDelete = function(index) {
         if (confirm("Are you sure you want to permanently delete this transaction? This action cannot be undone.")) {
-            // before removing, if the trashed item had a product, return stock to inventory
             const item = trashBin[index];
             if (item && item.product) {
                 const returnQty = item.orderQty && Number.isFinite(item.orderQty) ? item.orderQty : 1;
@@ -700,18 +705,15 @@
         }
     };
 
-    // Initial load call to render stored data
     updateUI();
-    // Inventory functions
+
     function renderInventory() {
         inventoryListEl.innerHTML = '';
         if (inventory.length === 0) {
             inventoryListEl.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9ca3af; font-size:0.9rem;">Inventory is empty</td></tr>`;
-            // reset order product select
             if (orderProductEl) {
                 orderProductEl.innerHTML = '<option value="">-- Select product --</option>';
             }
-            // attach export handler
             const exportBtnEmpty = document.getElementById('exportInventoryBtn');
             if (exportBtnEmpty) exportBtnEmpty.onclick = exportInventoryCSV;
             return;
@@ -732,7 +734,6 @@
             inventoryListEl.appendChild(row);
         });
 
-        // populate order product select
         if (orderProductEl) {
             orderProductEl.innerHTML = '<option value="">-- Select product --</option>';
             inventory.forEach(i => {
@@ -743,7 +744,6 @@
             });
         }
 
-        // attach export handler (ensure button exists)
         const exportBtn = document.getElementById('exportInventoryBtn');
         if (exportBtn) exportBtn.onclick = exportInventoryCSV;
         const downloadBtn = document.getElementById('downloadStoredCsvBtn');
@@ -752,7 +752,6 @@
 
     function saveInventory() {
         localStorage.setItem('inventory', JSON.stringify(inventory));
-        // Automatically export CSV whenever inventory changes
         try { exportInventoryCSV(); } catch (e) { /* silent */ }
     }
 
@@ -761,14 +760,12 @@
         const headers = ['Product','Quantity'];
         let csv = headers.join(',') + '\n';
         inventory.forEach(it => { csv += `"${(it.name+'').replace(/"/g,'""')}",${it.qty}\n`; });
-        // store CSV string and timestamp in localStorage for retrieval
         try {
             localStorage.setItem('inventory_csv', csv);
             const now = new Date();
             const iso = now.toISOString();
             localStorage.setItem('inventory_csv_ts', iso);
             if (lastSavedSpan) lastSavedSpan.innerText = new Date(iso).toLocaleString();
-            // auto-download if enabled
             if (autoDownloadChk && autoDownloadChk.checked) {
                 const safeTs = iso.replace(/[:.]/g,'-');
                 const filename = `inventory-${safeTs}.csv`;
@@ -825,8 +822,7 @@
         renderInventory();
     };
 
-    // Render inventory on load
     renderInventory();
-    </script>
+</script>
 </body>
 </html>
